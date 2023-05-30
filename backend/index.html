@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AIS SPA</title>
+    <style>
+        /* Custom styles here */
+        body {
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 16px;
+            cursor: pointer;
+        }
+        .chart-container {
+            width: 400px;
+            height: 400px;
+            margin: 16px auto;
+        }
+        .no-data-message {
+            text-align: center;
+            margin-top: 16px;
+        }
+    </style>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.6.2"></script>
+    <script>
+        // JavaScript code here
+        window.onload = function() {
+            fetchData();
+        };
+        function fetchData() {
+            fetch('/api/data/table')
+                .then(response => response.json())
+                .then(tableData => {
+                    // Process and display table data
+                    displayTableData(tableData);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+
+            fetch('/api/data/pie')
+                .then(response => response.json())
+                .then(pieData => {
+                    // Render pie chart
+                    if (pieData.length > 0) {
+                        renderPieChart(pieData);
+                    } else {
+                        showNoDataMessage();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+        var currentPage = 1;
+        var rowsPerPage = 5;
+
+        function displayTableData(data) {
+            var table = document.getElementById('data-table');
+
+            // Clear existing table content
+            table.innerHTML = '';
+
+            // Calculate pagination variables
+            var startIndex = (currentPage - 1) * rowsPerPage;
+            var endIndex = startIndex + rowsPerPage;
+            var paginatedData = data.slice(startIndex, endIndex);
+
+            // Create table header
+            var headerRow = table.insertRow();
+            for (var key in paginatedData[0]) {
+                if (paginatedData[0].hasOwnProperty(key)) {
+                    var headerCell = document.createElement('th');
+                    headerCell.textContent = key;
+                    headerRow.appendChild(headerCell);
+                }
+            }
+
+            // Create table rows with paginated data
+            paginatedData.forEach(function(item) {
+                var row = table.insertRow();
+                for (var key in item) {
+                    if (item.hasOwnProperty(key)) {
+                        var cell = row.insertCell();
+                        cell.textContent = item[key];
+                    }
+                }
+            });
+
+            // Create pagination controls
+            createPaginationControls(data.length);
+        }
+
+        function createPaginationControls(totalItems) {
+            var paginationContainer = document.getElementById('pagination-container');
+            paginationContainer.innerHTML = '';
+
+            var totalPages = Math.ceil(totalItems / rowsPerPage);
+
+            // Previous button
+            var previousButton = document.createElement('button');
+            previousButton.textContent = 'Previous';
+            previousButton.disabled = currentPage === 1;
+            previousButton.addEventListener('click', function() {
+                if (currentPage > 1) {
+                    currentPage--;
+                    fetchData();
+                }
+            });
+            paginationContainer.appendChild(previousButton);
+
+            // Page number indicator
+            var pageNumber = document.createElement('span');
+            pageNumber.textContent = ' Page ' + currentPage + ' of ' + totalPages + ' ' ;
+            paginationContainer.appendChild(pageNumber);
+
+            // Next button
+            var nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.addEventListener('click', function() {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    fetchData();
+                }
+            });
+            paginationContainer.appendChild(nextButton);
+        }
+
+        function displayData(data) {
+            var table = document.getElementById('data-table');
+
+            // Clear existing table content
+            table.innerHTML = '';
+
+            // Create table header
+            var headerRow = table.insertRow();
+            for (var key in data[0]) {
+                if (data[0].hasOwnProperty(key)) {
+                    var headerCell = document.createElement('th');
+                    headerCell.textContent = key;
+                    headerRow.appendChild(headerCell);
+                }
+            }
+
+            // Create table rows with data
+            data.forEach(function(item) {
+                var row = table.insertRow();
+                for (var key in item) {
+                    if (item.hasOwnProperty(key)) {
+                        var cell = row.insertCell();
+                        cell.textContent = item[key];
+                    }
+                }
+            });
+        }
+
+        function renderPieChart(data) {
+            var labels = [];
+            var values = [];
+
+            // Extract labels and values from the data
+            data.forEach(function(item) {
+                labels.push(item.label);
+                values.push(item.value);
+            });
+
+            var ctx = document.getElementById('pie-chart').getContext('2d');
+            var chart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#ff6384',
+                            '#36a2eb',
+                            '#ffcd56',
+                            '#4bc0c0',
+                            '#9966ff',
+                            '#ff9f40',
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    legend: {
+                        position: 'bottom',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Pie Chart',
+                    }
+                }
+            });
+        }
+
+        function showNoDataMessage() {
+            var chartContainer = document.getElementById('chart-container');
+            var noDataMessage = document.createElement('p');
+            noDataMessage.textContent = 'No data available.';
+            noDataMessage.className = 'no-data-message';
+            chartContainer.appendChild(noDataMessage);
+        }
+
+        function downloadExcel() {
+            var table = document.getElementById('data-table');
+
+            // Prepare data for Excel export
+            var excelData = [];
+            var rows = table.rows;
+            for (var i = 0; i < rows.length; i++) {
+                var rowData = [];
+                var cells = rows[i].cells;
+                for (var j = 0; j < cells.length; j++) {
+                    rowData.push(cells[j].textContent);
+                }
+                excelData.push(rowData);
+            }
+
+            // Create worksheet
+            var worksheet = XLSX.utils.aoa_to_sheet(excelData);
+            var workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+
+            // Convert workbook to binary and download
+            var excelFile = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
+            saveAs(new Blob([s2ab(excelFile)], { type: 'application/octet-stream' }), 'data.xlsx');
+        }
+
+        function s2ab(s) {
+            var buf = new ArrayBuffer(s.length);
+            var view = new Uint8Array(buf);
+            for (var i = 0; i < s.length; i++) {
+                view[i] = s.charCodeAt(i) & 0xFF;
+            }
+            return buf;
+        }
+    </script>
+    <script>
+        // JavaScript code for login and signup functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById("loginbtn").style.display = "block";
+            document.getElementById("signbtn").style.display = "block";
+        });
+
+        function showLogin() {
+            document.getElementById("login").style.display = "block";
+            document.getElementById("signup").style.display = "none";
+            document.getElementById("loginbtn").style.display = "none";
+            document.getElementById("signup").style.display = "none";
+        }
+
+        function showSignup() {
+            document.getElementById("signbtn").style.display = "none";
+            document.getElementById("signup").style.display = "block";
+            document.getElementById("loginbtn").style.display = "block";
+            document.getElementById("login").style.display = "none";
+
+        }
+
+        function showData() {
+            document.getElementById("chart-container").style.display = "block";
+            document.getElementById("data-table").style.display = "block";
+            document.getElementById("login").style.display = "none";
+            document.getElementById("signup").style.display = "none";
+
+
+            document.getElementById("pagination-container").style.display = "block";
+            document.getElementById("chart-container").style.display = "block";
+            document.getElementById("loginbtn").style.display = "none";
+            document.getElementById("signbtn").style.display = "none";
+            document.getElementById("downloadbtn").style.display = "block";
+
+
+        }
+
+        function hideData() {
+            document.getElementById("chart-container").style.display = "none";
+            document.getElementById("table").style.display = "none";
+            document.getElementById("login").style.display = "none";
+            document.getElementById("signup").style.display = "none";
+
+            document.getElementById("pagination-container").style.display = "none";
+            document.getElementById("chart-container").style.display = "none";
+            document.getElementById("loginbtn").style.display = "none";
+            document.getElementById("signbtn").style.display = "none";
+            document.getElementById("downloadbtn").style.display = "none";
+        }
+
+        // Simulated login check
+        function checkLoginStatus() {
+            // Replace this with your actual login check logic
+            // Here, I'm assuming that the user is logged in
+            var isLoggedIn = true;
+
+            if (isLoggedIn) {
+                showData();
+            } else {
+                hideData();
+            }
+        }
+
+        checkLoginStatus(); // Check login status on page load
+    </script>
+</head>
+
+<body>
+    <h1>Welcome to Asset Inventory's SPA!</h1>
+            <!-- Login form -->
+    <div id="login" style="display: none;">
+        <h2>Login</h2>
+        <form id="login-form">
+            <input type="text" id="username1" placeholder="Username" required><br>
+            <input type="password" id="password1" placeholder="Password" required><br>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <div id="signup" style="display: none;">
+        <h2>Signup</h2>
+        <form id="signup-form">
+            <input type="text" id="username2" placeholder="Username" required><br>
+            <input type="password" id="password2" placeholder="Password" required><br>
+            <button type="submit">Signup</button>
+        </form>
+    </div>
+
+    <button id="loginbtn" style="display: none;" onclick="showLogin()">Login</button>
+    <button id="signbtn" style="display: none;" onclick="showSignup()">Signup</button>
+
+    <table id="data-table" style="display: none;">
+    </table>
+    <div id="pagination-container"style="display: none;"></div>
+    <button id = "downloadbtn" onclick="downloadExcel()" style="display: none;">Download Excel</button>
+    <div id="chart-container"style="display: none;" class="chart-container">
+        <canvas id="pie-chart"></canvas>
+    </div>
+    <script>
+        // JavaScript code for login and signup functionality
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var username = document.getElementById('username1').value;
+            var password = document.getElementById('password1').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+            })
+            .then(response => {
+                if (response.ok) {
+                    // User login successful
+                    showData();
+                } else {
+                    // User login failed
+                    // Display error message or perform other actions
+                    hideData();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                hideData();
+            });
+        });
+
+        document.getElementById('signup-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var username = document.getElementById('username2').value;
+            var password = document.getElementById('password2').value;
+
+            fetch('/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+            })
+            .then(response => {
+                if (response.ok) {
+                    // User signup successful
+                    // Redirect or perform other actions
+                    showLogin();
+                } else {
+                    // User signup failed
+                    // Display error message or perform other actions
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+
+    
+</body>
+</html>
